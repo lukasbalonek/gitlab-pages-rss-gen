@@ -44,8 +44,8 @@ else
     # This will create from external/index.adoc => public/external/index.rss
     FILE_TARGET_FILENAME=$(echo ${RSS_TARGET_DIR}/${FILE} | sed "s@.${FILE_SUFFIX}@.rss@")
 
-    # This will create from external/index.adoc => public/external/index.html
-    FILE_TARGET_HTML_FILENAME=$(echo ${RSS_TARGET_DIR}/${FILE} | sed "s@.${FILE_SUFFIX}@.html@")
+    # This will create from external/index.adoc => external/index.html
+    FILE_TARGET_HTML_FILENAME=$(echo ${FILE} | sed "s@.${FILE_SUFFIX}@.html@")
 
     # Create GUID
     RSSGUID="$(date +'%Y%m%d%H%M%S')"
