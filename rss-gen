@@ -13,18 +13,6 @@ if [[ -z ${RSS_TARGET_DIR} ]]; then echo -e "\e[33m✕ RSS_TARGET_DIR has to be 
 # Website target URL, for example "https://johndoe.contoso.com"
 if [[ -z ${RSS_TARGET_URL} ]]; then echo -e "\e[33m✕ RSS_TARGET_URL has to be set ! \e[m"; exit 101; fi
 
-# Document author has to be set, otherwide message will be suspicious .. and retarded
-if [[ -z ${RSS_AUTHOR_MAIL} ]]; then
-  echo -e "\e[33m✕ RSS_AUTHOR_MAIL has to be set ! \e[m"
-  exit 102
-fi
-
-# Check if author mail matches something@something
-if ! echo ${RSS_AUTHOR_MAIL} | grep -q '.@.'; then
-  echo -e "${RSS_AUTHOR_MAIL} \e[31mis not a valid e-mail address ! \e[m"
-  exit 103
-fi
-
 ##### START #####
 
 # PHASE 1: Get all already generated RSS files from previous pipeline
@@ -88,7 +76,7 @@ else
         <description><![CDATA[
 $(${OUTPUT_GENERATOR_CMD})
 ]]></description>
-        <author>${RSS_AUTHOR_MAIL}</author>
+        <author>${GITLAB_USER_EMAIL} (${GITLAB_USER_NAME})</author>
         <link>${RSS_TARGET_URL}/${FILE_TARGET_HTML_FILENAME}</link>
         <guid>${RSSGUID}</guid>
       </item>
