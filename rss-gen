@@ -1,0 +1,99 @@
+#!/bin/bash
+
+##### SETTINGS #####
+
+# Set what files are being generated into .html
+FILE_SUFFIXES_GENERATED_TO_HTML='adoc\|md'
+
+##### PREPARATION #####
+
+# New artifacts target directory, for example "public"
+if [[ -z ${RSS_TARGET_DIR} ]]; then echo -e "\e[33m✕ RSS_TARGET_DIR has to be set ! \e[m"; exit 100; fi
+
+# Website target URL, for example "https://johndoe.contoso.com"
+if [[ -z ${RSS_TARGET_URL} ]]; then echo -e "\e[33m✕ RSS_TARGET_URL has to be set ! \e[m"; exit 101; fi
+
+# Document author has to be set, otherwide message will be suspicious .. and retarded
+if [[ -z ${RSS_AUTHOR_MAIL} ]]; then
+  echo -e "\e[33m✕ RSS_AUTHOR_MAIL has to be set ! \e[m"
+  exit 102
+fi
+
+# Check if author mail matches something@something
+if ! echo ${RSS_AUTHOR_MAIL} | grep -q '.@.'; then
+  echo -e "${RSS_AUTHOR_MAIL} \e[31mis not a valid e-mail address ! \e[m"
+  exit 103
+fi
+
+##### START #####
+
+# PHASE 1: Get all already generated RSS files from previous pipeline
+DW_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_REF_NAME}/download?job=${CI_JOB_NAME}"
+if curl -I --location --header "JOB-TOKEN: $CI_JOB_TOKEN" --silent --fail "${DW_URL}"; then
+  echo -e "\e[33mCopying already existing RSS files...\e[m"
+  curl --location --header "JOB-TOKEN: $CI_JOB_TOKEN" -o artifacts.zip "${DW_URL}"
+  unzip -o artifacts.zip -d artifacts
+  find artifacts -name '*.rss' | while read f; do cp -fv ${f} $(echo $f | sed 's@artifacts/@@'); done
+fi
+
+# Get list of files changed in last commit
+FILES_CHANGED_W_LAST_COMMIT=$(git diff --name-only HEAD HEAD~1)
+
+# Check if we even have to proceed more
+if ! echo "${FILES_CHANGED_W_LAST_COMMIT}" | grep -q "${FILE_SUFFIXES_GENERATED_TO_HTML}$"; then
+  echo -e "\e[32;1mNo files matching pattern\e[m\e[1m ${FILE_SUFFIXES_GENERATED_TO_HTML} \e[32;1mwere changed with last commit.\e[m"
+  exit 0
+else
+  # PHASE 2: Generate RSS files from source files
+  # List of last commited files matching md or adoc file suffix
+  FILES_MATCHING_SUFFIXES=$(echo "${FILES_CHANGED_W_LAST_COMMIT}" | grep "${FILE_SUFFIXES_GENERATED_TO_HTML}$")
+
+  for FILE in ${FILES_MATCHING_SUFFIXES[@]}; do
+
+    # Replace file suffix with html
+    FILE_SUFFIX=$(echo ${FILE} | grep -o "${FILE_SUFFIXES_GENERATED_TO_HTML}")
+
+    # This will create from external/index.adoc => public/external/index.rss
+    FILE_TARGET_FILENAME=$(echo ${RSS_TARGET_DIR}/${FILE} | sed "s@.${FILE_SUFFIX}@.rss@")
+
+    # This will create from external/index.adoc => public/external/index.html
+    FILE_TARGET_HTML_FILENAME=$(echo ${RSS_TARGET_DIR}/${FILE} | sed "s@.${FILE_SUFFIX}@.html@")
+
+    # Create GUID
+    RSSGUID="$(date +'%Y%m%d%H%M%S')"
+
+    echo -e "\e[32;1mGenerating RSS file for\e[m\e[1m ${FILE_TARGET_FILENAME} \e[m"
+
+    # Do action based on file suffix
+    case ${FILE_SUFFIX} in
+      adoc|md)
+        # Set title, match markdown (^# ) and asciidoctor (^= ) h1, select only first line
+        FILE_TITLE=$(grep -E '^(#|\=)[[:space:]].*' ${FILE} | cut -d ' ' -f2- | head -n1)
+
+        # Set command that will generate readable output from source file
+        OUTPUT_GENERATOR_CMD="asciidoctor -a nofooter ${FILE} -o -"
+      ;;
+    esac
+
+    # Create RSS file
+    mkdir -p $(dirname ${FILE_TARGET_HTML_FILENAME})
+    cat > ${FILE_TARGET_FILENAME} << EOF
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>${FILE_TITLE}</title>
+    <link>${RSS_TARGET_URL}/${FILE_SOURCE_PATH}</link>
+      <item>
+        <title>${FILE_TITLE}</title>
+        <description><![CDATA[
+$(${OUTPUT_GENERATOR_CMD})
+]]></description>
+        <author>${RSS_AUTHOR_MAIL}</author>
+        <link>${RSS_TARGET_URL}/${FILE_SOURCE_PATH}</link>
+        <guid>${RSSGUID}</guid>
+      </item>
+  </channel>
+</rss>
+EOF
+  done
+fi
