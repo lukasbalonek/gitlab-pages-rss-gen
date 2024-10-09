@@ -76,20 +76,20 @@ else
     esac
 
     # Create RSS file
-    mkdir -p $(dirname ${FILE_TARGET_HTML_FILENAME})
+    mkdir -p $(dirname ${FILE_TARGET_FILENAME})
     cat > ${FILE_TARGET_FILENAME} << EOF
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${FILE_TITLE}</title>
-    <link>${RSS_TARGET_URL}/${FILE_SOURCE_PATH}</link>
+    <link>${RSS_TARGET_URL}/${FILE_TARGET_HTML_FILENAME}</link>
       <item>
         <title>${FILE_TITLE}</title>
         <description><![CDATA[
 $(${OUTPUT_GENERATOR_CMD})
 ]]></description>
         <author>${RSS_AUTHOR_MAIL}</author>
-        <link>${RSS_TARGET_URL}/${FILE_SOURCE_PATH}</link>
+        <link>${RSS_TARGET_URL}/${FILE_TARGET_HTML_FILENAME}</link>
         <guid>${RSSGUID}</guid>
       </item>
   </channel>
